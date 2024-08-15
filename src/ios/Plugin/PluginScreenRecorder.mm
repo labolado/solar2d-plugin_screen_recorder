@@ -44,7 +44,6 @@ class PluginScreenRecorder
 
 	public:
 		static int init( lua_State *L );
-		static int show( lua_State *L );
         static int start( lua_State *L );
         static int stop( lua_State *L );
 
@@ -91,7 +90,6 @@ PluginScreenRecorder::Open( lua_State *L )
     const luaL_Reg kVTable[] =
     {
         { "init", init },
-        { "show", show },
         { "start", start },
         { "stop", stop },
         
@@ -145,48 +143,17 @@ PluginScreenRecorder::init( lua_State *L )
 	return 0;
 }
 
-// [Lua] library.show( word )
-int
-PluginScreenRecorder::show( lua_State *L )
-{
-	NSString *message = @"Error: Could not display UIReferenceLibraryViewController. This feature requires iOS 5 or later.";
-	
-	if ( [UIReferenceLibraryViewController class] )
-	{
-		id<CoronaRuntime> runtime = (id<CoronaRuntime>)CoronaLuaGetContext( L );
-
-		const char kDefaultWord[] = "corona";
-		const char *word = lua_tostring( L, 1 );
-		if ( ! word )
-		{
-			word = kDefaultWord;
-		}
-
-		UIReferenceLibraryViewController *controller = [[[UIReferenceLibraryViewController alloc] initWithTerm:[NSString stringWithUTF8String:word]] autorelease];
-
-		// Present the controller modally.
-		[runtime.appViewController presentViewController:controller animated:YES completion:nil];
-
-		message = @"Success. Displaying UIReferenceLibraryViewController for 'corona'.";
-	}
-
-	Self *library = ToLibrary( L );
-
-	// Create event and add message to it
-	CoronaLuaNewEvent( L, kEvent );
-	lua_pushstring( L, [message UTF8String] );
-	lua_setfield( L, -2, "message" );
-
-	// Dispatch event to library's listener
-	CoronaLuaDispatchEvent( L, library->GetListener(), 0 );
-
-	return 0;
-}
 
 // [Lua] library.start()
 int
 PluginScreenRecorder::start(lua_State *L)
 {
+    int listenerIndex = 1;
+	CoronaLuaRef listener = NULL;
+    if ( CoronaLuaIsListener( L, listenerIndex, kEvent ) )
+    {
+        listener = CoronaLuaNewRef( L, listenerIndex );
+    }
     RPScreenRecorder *r = [RPScreenRecorder sharedRecorder];
     if ( !r.available) {
         NSLog(@"ReplayKit unavailable");
@@ -194,7 +161,23 @@ PluginScreenRecorder::start(lua_State *L)
     }
     if ( !r.recording ) {
         [r startRecordingWithHandler:^(NSError * _Nullable error) {
-            NSLog(@"Record start error info: %@", error.localizedDescription);
+            bool isError = false;
+        	if ( error ) {
+	            NSLog(@"Record start error info: %@", error.localizedDescription);
+                isError = true;
+        	}
+
+           	if ( listener ) {
+                // Create event and add message to it
+                CoronaLuaNewEvent( L, kEvent );
+                lua_pushboolean( L, isError );
+                lua_setfield( L, -2, "isError" );
+                lua_pushstring( L, [error.localizedDescription UTF8String] );
+                lua_setfield( L, -2, "errorMessage" );
+
+                // Dispatch event to library's listener
+                CoronaLuaDispatchEvent( L, listener, 0 );
+            }
         }];
     }
     return 0;
