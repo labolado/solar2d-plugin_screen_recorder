@@ -176,12 +176,17 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 				showLongToast("No permission for " + Manifest.permission.RECORD_AUDIO);
 			}
 		} else if (fPERMISSION_REQ_ID_WRITE_EXTERNAL_STORAGE == requestCode) {
-			if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 				fHasPermissions = true;
 				startRecordingScreen();
 			} else {
-				fHasPermissions = false;
-				showLongToast("No permission for " + Manifest.permission.WRITE_EXTERNAL_STORAGE);
+				if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+					fHasPermissions = true;
+					startRecordingScreen();
+				} else {
+					fHasPermissions = false;
+					showLongToast("No permission for " + Manifest.permission.WRITE_EXTERNAL_STORAGE);
+				}
 			}
 		}
 	}
@@ -434,7 +439,6 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 		// 		fHasPermissions = true;
 		// 	}
 		// }
-		// else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 			if (checkSelfPermission(Manifest.permission.RECORD_AUDIO, fPERMISSION_REQ_ID_RECORD_AUDIO)) {
 				fHasPermissions = true;

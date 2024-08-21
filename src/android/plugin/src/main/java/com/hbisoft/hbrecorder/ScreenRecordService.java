@@ -817,11 +817,11 @@ public class ScreenRecordService extends Service {
                 }
             }
 
-            // mAudioRecord.stop();
-            // mAudioRecord.release();
-            // mAudioEncoder.stop();
-            // mAudioEncoder.release();
-            Log.d(TAG, "AudioEncoder stop");
+            mAudioRecord.stop();
+            mAudioRecord.release();
+            mAudioEncoder.stop();
+            mAudioEncoder.release();
+            // Log.d(TAG, "AudioEncoder stop");
         });
 
         mAudioThread.start();
@@ -860,9 +860,9 @@ public class ScreenRecordService extends Service {
                 }
             }
 
-            // mVideoEncoder.stop();
-            // mVideoEncoder.release();
-            Log.d(TAG, "VideoEncoder stop");
+            mVideoEncoder.stop();
+            mVideoEncoder.release();
+            // Log.d(TAG, "VideoEncoder stop");
         });
 
         mVideoThread.start();
@@ -964,21 +964,21 @@ public class ScreenRecordService extends Service {
             }
         }
 
-        if (mVideoEncoder != null) {
-            mVideoEncoder.stop();
-            mVideoEncoder.release();
-            mVideoEncoder = null;
-        }
-        if (mAudioEncoder != null) {
-            mAudioEncoder.stop();
-            mAudioEncoder.release();
-            mAudioEncoder = null;
-        }
-        if (mAudioRecord != null) {
-            mAudioRecord.stop();
-            mAudioRecord.release();
-            mAudioRecord = null;
-        }
+        // if (mVideoEncoder != null) {
+        //     mVideoEncoder.stop();
+        //     mVideoEncoder.release();
+        //     mVideoEncoder = null;
+        // }
+        // if (mAudioEncoder != null) {
+        //     mAudioEncoder.stop();
+        //     mAudioEncoder.release();
+        //     mAudioEncoder = null;
+        // }
+        // if (mAudioRecord != null) {
+        //     mAudioRecord.stop();
+        //     mAudioRecord.release();
+        //     mAudioRecord = null;
+        // }
 
         if (mVirtualDisplay != null) {
             mVirtualDisplay.release();
