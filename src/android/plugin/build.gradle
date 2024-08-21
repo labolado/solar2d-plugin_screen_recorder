@@ -1,23 +1,24 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
-        minSdkVersion 15
-        targetSdk 33
+        minSdk 21
+        targetSdk 34
         versionCode 1
         versionName "1.0"
     }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
-    }
+//    compileOptions {
+//        sourceCompatibility JavaVersion.VERSION_11
+//        targetCompatibility JavaVersion.VERSION_11
+//    }
 
 }
 
 dependencies {
-    implementation ':Corona@aar'    
+    implementation ':Corona@aar'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
 }
 
 tasks.register("extractPluginJar") {
@@ -68,5 +69,33 @@ tasks.register("deployToLocalSolar2DRepo", Tar) {
     }
     doLast {
         println("\n\n\n== !!! IMPORTANT !!! ==\nMake sure to delete plugin when done: $dst\nThis plugin will override any Solar2Directory plugin, or plugin from any other source")
+    }
+}
+
+task deployPluginToDirectory() {
+    group "Solar2Dev"
+    dependsOn assemble
+    doLast {
+        copy {
+            from {
+//                zipTree("$buildDir/outputs/aar/${project.name}-release.aar").matching {
+//                    include 'classes.jar'
+//                }.singleFile
+                "$buildDir/outputs/aar/${project.name}-release.aar"
+            }
+            into "$buildDir/outputs/../../../../../plugins/2020.3620/android/"
+
+            File pluginManifestFile = file("src/main/AndroidManifest.xml")
+            if (pluginManifestFile.exists()) {
+                String manifestContents = pluginManifestFile.text
+                def pluginManifestXml = new XmlSlurper().parseText(manifestContents)
+                String packageName = pluginManifestXml.@package.toString()
+//                rename "classes.jar", "${packageName}.jar"
+                rename "${project.name}-release.aar", "${packageName}.aar"
+            } else {
+//                rename "classes.jar", "plugin.jar"
+                rename "${project.name}-release.aar","plugin.jar"
+            }
+        }
     }
 }

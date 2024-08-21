@@ -1,4 +1,4 @@
-rootProject.name = "Corona Native Android"
+rootProject.name = "solar2d-plugin_screen_recorder"
 include("app", "plugin")
 
 if (settings.hasProperty('coronaExpansionFileName')) {

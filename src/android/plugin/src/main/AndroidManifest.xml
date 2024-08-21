@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
-          package="plugin.library">
-    <application>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="plugin.screenRecorder">
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <application
+        tools:targetApi="q">
+
+        <service android:name="com.hbisoft.hbrecorder.ScreenRecordService"
+            android:foregroundServiceType="mediaProjection|microphone"
+            tools:targetApi="q" />
+
+        <receiver android:name="com.hbisoft.hbrecorder.NotificationReceiver"/>
+
     </application>
+
 </manifest>
