@@ -7,6 +7,7 @@
     -->
     <application android:label="Corona App"
     	android:name="CoronaApplication"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar"
         tools:replace="android:name"
     	/>
 </manifest>
