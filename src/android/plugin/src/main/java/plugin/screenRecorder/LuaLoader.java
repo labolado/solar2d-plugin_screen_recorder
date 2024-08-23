@@ -446,10 +446,10 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 					@Override
 					public void onPrepared(MediaPlayer mp) {
 						calculateView(videoView, mp.getVideoWidth(), mp.getVideoHeight());
+						firstStart[0] = true;
 						videoView.start();
 						videoView.pause();
 						mediaController.show();
-						firstStart[0] = true;
 					}
 				});
 
@@ -490,18 +490,20 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 						}
 					}
 					@Override
-					public void onPause() {}
-				});
-				videoView.setOnClickListener(new View.OnClickListener() {
-					@Override
-					public void onClick(View view) {
-						if (titleBar.getVisibility() == View.VISIBLE) {
-							titleBar.setVisibility(View.GONE);
-						} else {
-							titleBar.setVisibility(View.VISIBLE);
-						}
+					public void onPause() {
+						titleBar.setVisibility(View.VISIBLE);
 					}
 				});
+				// videoView.setOnClickListener(new View.OnClickListener() {
+				// 	@Override
+				// 	public void onClick(View view) {
+				// 		if (titleBar.getVisibility() == View.VISIBLE) {
+				// 			titleBar.setVisibility(View.GONE);
+				// 		} else {
+				// 			titleBar.setVisibility(View.VISIBLE);
+				// 		}
+				// 	}
+				// });
 
 				popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
 					@Override
