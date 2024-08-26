@@ -1,0 +1,7 @@
+plugins/*.tgz
+.DS_Store
+.gradle
+.idea
+build/
+*xcuser*
+BuiltPlugin/
