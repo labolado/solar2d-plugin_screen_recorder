@@ -12,6 +12,7 @@ package plugin.screenRecorder;
 import static android.app.Activity.RESULT_OK;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -26,10 +27,14 @@ import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
 import android.provider.MediaStore;
+import android.transition.Transition;
+import android.transition.TransitionInflater;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -425,21 +430,6 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 				MediaController mediaController = new MediaController(activity);
 				mediaController.setAnchorView(videoView);
 				videoView.setMediaController(mediaController);
-				// videoView.(ImageView.ScaleType.FIT_CENTER);
-
-				// MediaPlayer mediaPlayer = MediaPlayer.create(activity, videoUri);
-				// int videoWidth = mediaPlayer.getVideoWidth();
-				// int videoHeight = mediaPlayer.getVideoHeight();
-				// float videoAspectRatio = (float) videoWidth / videoHeight;
-				// ViewGroup.LayoutParams lp = videoView.getLayoutParams();
-				// lp.height = (int) (lp.width / videoAspectRatio);
-				// videoView.setLayoutParams(lp);
-				// 设置视频保持宽高比
-				// FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-				// 		ViewGroup.LayoutParams.MATCH_PARENT,
-				// 		ViewGroup.LayoutParams.MATCH_PARENT,
-				// 		android.view.Gravity.CENTER);
-				// videoView.setLayoutParams(params);
 
 				final boolean[] firstStart = {false};
 				videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
@@ -453,8 +443,6 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 					}
 				});
 
-				// videoView.start();
-
 				ImageButton shareButton = contentView.findViewById(R.id.shareButton);
 				shareButton.setOnClickListener(new View.OnClickListener() {
 					@Override
@@ -463,8 +451,9 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 						Intent shareIntent = new Intent(Intent.ACTION_SEND);
 						shareIntent.setType("video/mp4");
 						shareIntent.putExtra(Intent.EXTRA_STREAM, videoUri);
-						shareIntent.putExtra(Intent.EXTRA_TITLE, mFilename);
-						// activity.startActivity(Intent.createChooser(shareIntent, "选择分享方式"));
+						// shareIntent.putExtra(Intent.EXTRA_SHORTCUT_NAME, mFilename);
+						// shareIntent.putExtra(Intent.EXTRA_TITLE, mFilename);
+						// shareIntent.putExtra(Intent.EXTRA_TITLE, mFilename);
 						// activity.setRequestedOrientation(originOrientation);
 						activity.startActivityForResult(
 								Intent.createChooser(shareIntent, activity.getResources().getText(R.string.share_chooser_title)), fSHARE_REQUEST_CODE);
@@ -480,30 +469,44 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 				});
 
 				RelativeLayout titleBar = contentView.findViewById(R.id.titleBar);
-				videoView.setPlayPauseListener(new CustomVideoView.PlayPauseListener() {
-					@Override
-					public void onPlay() {
-						if (!firstStart[0]) {
-							titleBar.setVisibility(View.GONE);
-						} else {
-							firstStart[0] = false;
-						}
-					}
-					@Override
-					public void onPause() {
-						titleBar.setVisibility(View.VISIBLE);
-					}
-				});
-				// videoView.setOnClickListener(new View.OnClickListener() {
+				// videoView.setPlayPauseListener(new CustomVideoView.PlayPauseListener() {
 				// 	@Override
-				// 	public void onClick(View view) {
-				// 		if (titleBar.getVisibility() == View.VISIBLE) {
+				// 	public void onPlay() {
+				// 		if (!firstStart[0]) {
 				// 			titleBar.setVisibility(View.GONE);
 				// 		} else {
-				// 			titleBar.setVisibility(View.VISIBLE);
+				// 			firstStart[0] = false;
 				// 		}
 				// 	}
+				// 	@Override
+				// 	public void onPause() {
+				// 		titleBar.setVisibility(View.VISIBLE);
+				// 	}
 				// });
+
+				// videoView.setOnTouchListener(new View.OnTouchListener() {
+				// 	@Override
+				// 	public boolean onTouch(View view, MotionEvent event) {
+				// 		if (event.getAction() == MotionEvent.ACTION_DOWN) {
+				// 			if (titleBar.getVisibility() == View.VISIBLE) {
+				// 				titleBar.setVisibility(View.GONE);
+				// 				// mediaController.hide();
+				// 			} else {
+				// 				titleBar.setVisibility(View.VISIBLE);
+				// 				// mediaController.show();
+				// 			}
+				// 		}
+				// 		return false;
+				// 	}
+				// });
+
+				videoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+					@Override
+					public void onCompletion(MediaPlayer mediaPlayer) {
+						titleBar.setVisibility(View.VISIBLE);
+						videoView.pause();
+					}
+				});
 
 				popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
 					@Override
@@ -516,59 +519,22 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 				TextView title = contentView.findViewById(R.id.previewTitle);
 				title.setText(R.string.preview_title);
 
-				// popupWindow.setAnimationStyle(R.anim.popup_animation);
-				popupWindow.showAtLocation(activity.getOverlayView(), android.view.Gravity.CENTER, 0, 0);
+				// popupWindow.setFocusable(false);
+				popupWindow.setOutsideTouchable(false);
+				popupWindow.setAnimationStyle(R.style.popwin_anim);
 				// popupWindow.showAsDropDown(activity.getOverlayView());
+				popupWindow.showAtLocation(activity.getOverlayView(), Gravity.CENTER, 0, 0);
 			}
 		});
 	}
-
-	// private void styleMediaController(View view, CoronaActivity activity) {
-	// 	if (view instanceof MediaController) {
-	// 		MediaController v = (MediaController) view;
-	// 		for (int i = 0; i < v.getChildCount(); i++) {
-	// 			styleMediaController(v.getChildAt(i), activity);
-	// 		}
-	// 	} else if (view instanceof LinearLayout) {
-	// 		LinearLayout ll = (LinearLayout) view;
-	// 		for (int i = 0; i < ll.getChildCount(); i++) {
-	// 			styleMediaController(ll.getChildAt(i), activity);
-	// 		}
-	// 	} else if (view instanceof SeekBar) {
-	// 		((SeekBar) view)
-	// 				.getProgressDrawable()
-	// 				.mutate()
-	// 				.setColorFilter(
-	// 						activity.getResources().getColor(
-	// 								R.color.MediaPlayerMeterColor),
-	// 						PorterDuff.Mode.SRC_IN);
-	// 		Drawable thumb = ((SeekBar) view).getThumb().mutate();
-	// 		if (thumb instanceof androidx.appcompat.graphics.drawable.DrawableWrapperCompat) {
-	// 			//compat mode, requires support library v4
-	// 			((androidx.appcompat.graphics.drawable.DrawableWrapperCompat) thumb).setTint(activity.getResources()
-	// 					.getColor(R.color.MediaPlayerThumbColor));
-	// 		} else {
-	// 			//lollipop devices
-	// 			thumb.setColorFilter(
-	// 					activity.getResources().getColor(R.color.MediaPlayerThumbColor),
-	// 					PorterDuff.Mode.SRC_IN);
-	// 		}
-	// 	}
-	// }
 
 	public void calculateView(VideoView videoView, int videoWidth, int videoHeight) {
 		int videoViewWidth = videoView.getWidth();
 		int videoViewHeight = videoView.getHeight();
 
-		if (videoWidth < videoViewWidth && videoHeight >= videoViewHeight) {
-			float videoAspectRatio = (float) videoWidth / videoHeight;
-			float newVideoWidth = videoViewHeight / videoAspectRatio;
-			reSetVideoViewWidth(videoView, (int) newVideoWidth);
-		} else if (videoWidth > videoViewWidth && videoHeight >= videoViewHeight) {
-			float videoAspectRatio = (float) videoHeight / videoWidth;
-			float newVideoWidth = videoViewHeight / videoAspectRatio;
-			reSetVideoViewWidth(videoView, (int) newVideoWidth);
-		}
+		float videoAspectRatio = (float) videoWidth / videoHeight;
+		float newVideoWidth = videoViewHeight * videoAspectRatio;
+		reSetVideoViewWidth(videoView, (int) newVideoWidth);
 	}
 
 	private void reSetVideoViewWidth(VideoView videoView, int newWidth) {

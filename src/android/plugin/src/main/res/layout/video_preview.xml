@@ -4,32 +4,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:drawable/screen_background_dark_transparent">
-    <!--android:padding="16dp"-->
-
-    <!--<View-->
-    <!--    android:id="@+id/view"-->
-    <!--    android:layout_width="wrap_content"-->
-    <!--    android:layout_height="wrap_content"-->
-    <!--    android:background="#FFFFFF" />-->
-
-    <!--<View-->
-    <!--    android:id="@+id/line"-->
-    <!--    android:layout_width="wrap_content"-->
-    <!--    android:layout_height="1dp"-->
-    <!--    android:background="#323232"-->
-    <!--    android:layout_below="@id/shareButton" />-->
-
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" >
-        <!--android:layout_below="@id/line" >-->
-        <!--android:background="@drawable/framelayout_border">-->
-        <plugin.screenRecorder.CustomVideoView
-            android:id="@+id/videoPreview"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center" />
-    </FrameLayout>
 
     <RelativeLayout
         android:id="@+id/titleBar"
@@ -74,5 +48,18 @@
             android:paddingTop="16dp"
             android:src="@android:drawable/ic_menu_close_clear_cancel" />
     </RelativeLayout>
+
+    <FrameLayout
+        android:id="@+id/videoFrame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/titleBar" >
+        <plugin.screenRecorder.CustomVideoView
+            android:id="@+id/videoPreview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
 
 </RelativeLayout>

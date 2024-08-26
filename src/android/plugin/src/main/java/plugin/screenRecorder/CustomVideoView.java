@@ -24,6 +24,11 @@ public class CustomVideoView extends VideoView {
     }
 
     @Override
+    public boolean performClick() {
+        return super.performClick();
+    }
+
+    @Override
     public void pause() {
         super.pause();
         if (mListener != null) {
