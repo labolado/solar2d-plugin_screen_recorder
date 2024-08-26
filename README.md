@@ -6,14 +6,14 @@ Add following to your *build.settings* to use:
 ``` Lua
 {
     plugins = {
-		["plugin.screenRecorder"] = {
-			publisherId = "com.coronalabs",
-			supportedPlatforms = {
-				["android"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v6/2020.3620-android.tgz"},
-				["iphone"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v6/2020.3620-iphone.tgz"},
-				["iphone-sim"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v6/2020.3620-iphone-sim.tgz"},
-			}
-		}
+        ["plugin.screenRecorder"] = {
+            publisherId = "com.coronalabs",
+            supportedPlatforms = {
+                ["android"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v6/2020.3620-android.tgz"},
+                ["iphone"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v6/2020.3620-iphone.tgz"},
+                ["iphone-sim"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v6/2020.3620-iphone-sim.tgz"},
+            }
+        }
     },
 }
 
