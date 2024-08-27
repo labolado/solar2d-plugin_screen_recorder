@@ -1,4 +1,5 @@
-## solar2d_plugin_screen_recorder
+In-App Video Recording + Video Sharing Plugin (Android & iOS) for Solar2d Game Engine.
+
 Implement video recording and share functionality on both *iOS* and *Android* platforms. For Android development, refer to the [HBRecorder](https://github.com/HBiSoft/HBRecorder) library.
 
 ### How to use:
