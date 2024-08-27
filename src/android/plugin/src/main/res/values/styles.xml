@@ -2,6 +2,6 @@
 <resources>
     <style name="popwin_anim" parent="android:Animation">
         <item name="android:windowEnterAnimation">@anim/pop_enter</item>
-        <item name="android:windowExitAnimation">@anim/pop_exit</item>
+        <!--<item name="android:windowExitAnimation">@anim/pop_exit</item>-->
     </style>
 </resources>

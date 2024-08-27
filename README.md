@@ -9,9 +9,9 @@ Add following to your *build.settings* to use:
         ["plugin.screenRecorder"] = {
             publisherId = "com.labolado",
             supportedPlatforms = {
-                ["android"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v6/2020.3620-android.tgz"},
-                ["iphone"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v6/2020.3620-iphone.tgz"},
-                ["iphone-sim"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v6/2020.3620-iphone-sim.tgz"},
+                ["android"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v7/2020.3620-android.tgz"},
+                ["iphone"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v7/2020.3620-iphone.tgz"},
+                ["iphone-sim"] = {url = "https://github.com/labolado/solar2d-plugin_screen_recorder/releases/download/v7/2020.3620-iphone-sim.tgz"},
             }
         }
     },

@@ -12,48 +12,20 @@ package plugin.screenRecorder;
 import static android.app.Activity.RESULT_OK;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
-import android.graphics.PorterDuff;
-import android.graphics.drawable.Drawable;
-import android.media.MediaPlayer;
 import android.media.MediaScannerConnection;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
-import android.os.Handler;
 import android.provider.MediaStore;
-import android.transition.Transition;
-import android.transition.TransitionInflater;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.LayoutInflater;
-import android.view.MotionEvent;
-import android.view.Surface;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.FrameLayout;
-import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.MediaController;
-import android.widget.PopupWindow;
-import android.widget.RelativeLayout;
-import android.widget.SeekBar;
-import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.VideoView;
 
-import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -71,7 +43,6 @@ import com.hbisoft.hbrecorder.HBRecorder;
 import com.hbisoft.hbrecorder.HBRecorderListener;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
@@ -387,160 +358,25 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 		showPopup(activity, true);
 	}
 
-	private void createShareItent(CoronaActivity activity, boolean wasUri) {
-		Uri videoUri;
-		if (wasUri) {
-			videoUri = mUri;
-		} else {
-			videoUri = Uri.fromFile(new File(fRecorder.getFilePath()));
-		}
-
-		activity.runOnUiThread(new Runnable() {
-			@Override
-			public void run() {
-				activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-				Intent shareIntent = new Intent(Intent.ACTION_SEND);
-				shareIntent.setType("video/mp4");
-				shareIntent.putExtra(Intent.EXTRA_STREAM, videoUri);
-				// activity.startActivity(Intent.createChooser(shareIntent, "选择分享方式"));
-				// activity.setRequestedOrientation(originOrientation);
-				activity.startActivityForResult(Intent.createChooser(shareIntent, "选择分享方式"), fSHARE_REQUEST_CODE);
-			}
-		});
-	}
-
 	private void showPopup(CoronaActivity activity, boolean wasUri) {
-		// createShareItent(activity, wasUri);
 		activity.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				// activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-
-				View contentView = activity.getLayoutInflater().inflate(R.layout.video_preview, null);
-				PopupWindow popupWindow = new PopupWindow(contentView, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, true);
-				CustomVideoView videoView = contentView.findViewById(R.id.videoPreview);
 				Uri videoUri;
+				String filename;
 				if (wasUri) {
 					videoUri = mUri;
-					videoView.setVideoURI(videoUri);
+					filename = mUri.toString();
 				} else {
 					videoUri = Uri.fromFile(new File(fRecorder.getFilePath()));
-					videoView.setVideoPath(fRecorder.getFilePath());
+					filename =fRecorder.getFilePath();
 				}
-				MediaController mediaController = new MediaController(activity);
-				mediaController.setAnchorView(videoView);
-				videoView.setMediaController(mediaController);
-
-				final boolean[] firstStart = {false};
-				videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-					@Override
-					public void onPrepared(MediaPlayer mp) {
-						calculateView(videoView, mp.getVideoWidth(), mp.getVideoHeight());
-						firstStart[0] = true;
-						videoView.start();
-						videoView.pause();
-						mediaController.show();
-					}
-				});
-
-				ImageButton shareButton = contentView.findViewById(R.id.shareButton);
-				shareButton.setOnClickListener(new View.OnClickListener() {
-					@Override
-					public void onClick(View v) {
-						activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-						Intent shareIntent = new Intent(Intent.ACTION_SEND);
-						shareIntent.setType("video/mp4");
-						shareIntent.putExtra(Intent.EXTRA_STREAM, videoUri);
-						// shareIntent.putExtra(Intent.EXTRA_SHORTCUT_NAME, mFilename);
-						// shareIntent.putExtra(Intent.EXTRA_TITLE, mFilename);
-						// shareIntent.putExtra(Intent.EXTRA_TITLE, mFilename);
-						// activity.setRequestedOrientation(originOrientation);
-						activity.startActivityForResult(
-								Intent.createChooser(shareIntent, activity.getResources().getText(R.string.share_chooser_title)), fSHARE_REQUEST_CODE);
-					}
-				});
-
-				ImageButton closeButton = contentView.findViewById(R.id.closeButton);
-				closeButton.setOnClickListener(new View.OnClickListener() {
-					@Override
-					public void onClick(View v) {
-						popupWindow.dismiss();
-					}
-				});
-
-				RelativeLayout titleBar = contentView.findViewById(R.id.titleBar);
-				// videoView.setPlayPauseListener(new CustomVideoView.PlayPauseListener() {
-				// 	@Override
-				// 	public void onPlay() {
-				// 		if (!firstStart[0]) {
-				// 			titleBar.setVisibility(View.GONE);
-				// 		} else {
-				// 			firstStart[0] = false;
-				// 		}
-				// 	}
-				// 	@Override
-				// 	public void onPause() {
-				// 		titleBar.setVisibility(View.VISIBLE);
-				// 	}
-				// });
-
-				// videoView.setOnTouchListener(new View.OnTouchListener() {
-				// 	@Override
-				// 	public boolean onTouch(View view, MotionEvent event) {
-				// 		if (event.getAction() == MotionEvent.ACTION_DOWN) {
-				// 			if (titleBar.getVisibility() == View.VISIBLE) {
-				// 				titleBar.setVisibility(View.GONE);
-				// 				// mediaController.hide();
-				// 			} else {
-				// 				titleBar.setVisibility(View.VISIBLE);
-				// 				// mediaController.show();
-				// 			}
-				// 		}
-				// 		return false;
-				// 	}
-				// });
-
-				videoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-					@Override
-					public void onCompletion(MediaPlayer mediaPlayer) {
-						titleBar.setVisibility(View.VISIBLE);
-						videoView.pause();
-					}
-				});
-
-				popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
-					@Override
-					public void onDismiss() {
-						videoView.stopPlayback();
-						activity.setRequestedOrientation(activity.getOrientationFromManifest());
-					}
-				});
-
-				TextView title = contentView.findViewById(R.id.previewTitle);
-				title.setText(R.string.preview_title);
-
-				// popupWindow.setFocusable(false);
-				popupWindow.setOutsideTouchable(false);
-				popupWindow.setAnimationStyle(R.style.popwin_anim);
-				// popupWindow.showAsDropDown(activity.getOverlayView());
-				popupWindow.showAtLocation(activity.getOverlayView(), Gravity.CENTER, 0, 0);
+				Intent intent = new Intent(activity, VideoPreviewActivity.class);
+				intent.putExtra("videoFile", filename);
+				intent.putExtra("originOrientation", activity.getOrientationFromManifest());
+				activity.startActivityForResult(intent, fSHARE_REQUEST_CODE);
 			}
 		});
-	}
-
-	public void calculateView(VideoView videoView, int videoWidth, int videoHeight) {
-		int videoViewWidth = videoView.getWidth();
-		int videoViewHeight = videoView.getHeight();
-
-		float videoAspectRatio = (float) videoWidth / videoHeight;
-		float newVideoWidth = videoViewHeight * videoAspectRatio;
-		reSetVideoViewWidth(videoView, (int) newVideoWidth);
-	}
-
-	private void reSetVideoViewWidth(VideoView videoView, int newWidth) {
-		ViewGroup.LayoutParams lp = videoView.getLayoutParams();
-		lp.width = newWidth;
-		videoView.setLayoutParams(lp);
 	}
 
 	/**
@@ -675,7 +511,7 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 		public String getName() {
 			return "init";
 		}
-		
+
 		/**
 		 * This method is called when the Lua function is called.
 		 * <p>
