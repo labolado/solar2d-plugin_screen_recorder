@@ -1,0 +1,8 @@
+android.defaultConfig {
+    minSdkVersion Math.max(minSdkVersion?.apiLevel ?: 15, 21)
+}
+ext["minSdkVersion"] = Math.max(ext.find("minSdkVersion")?:15, 21)
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}

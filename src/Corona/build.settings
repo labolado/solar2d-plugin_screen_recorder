@@ -1,0 +1,60 @@
+--
+-- For more information on build.settings see the Corona Build Guide at:
+-- http://docs.coronalabs.com/guide/distribution/buildSettings/index.html
+--
+
+settings =
+{
+	--[[
+	orientation =
+	{
+		default = "portrait",
+		supported = { "portrait" }
+	},
+	--]]
+	excludeFiles =
+	{
+		all = {"assets/levels/road/zcapture/*.png", ".DS_Store", "*.bak", "*.psd", ".git", ".gitignore", ".cache", "*.md", "*/lib.doc/*.*", "*/lib.test/*.*", "AndroidResources", "_AndroidResources*/**"},
+		android = {"LaunchScreen.storyboardc", "Images.xcassets/*.*" },
+	},
+	build =
+	{
+		neverStripDebugInfo = true,
+	},
+	plugins= {
+		["plugin.screenRecorder"] = {
+			publisherId = "com.coronalabs",
+			supportedPlatforms = {
+				["android"] = {url = "http://127.0.0.1:10980/plugins/android/plugin.screenRecorder/2020.3620-android.tgz"},
+				["iphone"] = {url = "http://127.0.0.1:10980/plugins/iphone/plugin.screenRecorder/2020.3620-iphone.tgz"},
+			}
+		},
+	},
+	iphone =
+	{
+		xcassets = "Images.xcassets",
+		plist =
+		{
+			NSPhotoLibraryUsageDescription = "This app would like to access the photo library.",
+			NSPhotoLibraryAddUsageDescription = "This app would like to save photos to your photo gallery.",
+
+			UIStatusBarHidden = true,
+			UIViewControllerBasedStatusBarAppearance = true,
+
+			UILaunchStoryboardName = "LaunchScreen",  -- Required!
+
+			NSAppTransportSecurity =
+			{
+				NSAllowsArbitraryLoads = true
+			},
+			UIPrerenderedIcon = false,
+			CFBundleIconFile = "Icon.png",
+			CFBundleIconFiles =
+			{
+			},
+		},
+	},
+	splashScreen = {
+		enable = false
+	},
+}

@@ -1,0 +1,6 @@
+rootProject.name = "solar2d-plugin_screen_recorder"
+include("app", "plugin")
+
+if (settings.hasProperty('coronaExpansionFileName')) {
+	include("preloadedAssets")
+}
