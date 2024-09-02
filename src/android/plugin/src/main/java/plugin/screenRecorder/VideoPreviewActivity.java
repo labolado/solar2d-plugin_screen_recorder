@@ -7,6 +7,7 @@ import android.media.MediaPlayer;
 import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.MediaController;
 import android.net.Uri;
@@ -15,6 +16,10 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.VideoView;
 
+import android.content.ContentResolver;
+import android.provider.MediaStore;
+import java.io.File;
+
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -22,15 +27,18 @@ public class VideoPreviewActivity extends AppCompatActivity {
     private static final int SHARE_REQUEST_CODE = 77;
 
     private int mOriginOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+    private MediaController mMediaController;
+    private CustomVideoView mVideoView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         makeFullScreen();
+        hideStatusBar();
+        // keepScreenActive();
 
         Intent intent = getIntent();
-        // Uri videoUri = (Uri)intent.getSerializableExtra("videoUri");
         String videoFile = intent.getStringExtra("videoFile");
         Uri videoUri = Uri.parse(videoFile);
 
@@ -38,23 +46,27 @@ public class VideoPreviewActivity extends AppCompatActivity {
         setRequestedOrientation(mOriginOrientation);
 
         setContentView(R.layout.video_preview);
-        CustomVideoView videoView = findViewById(R.id.videoPreview);
-        videoView.setVideoURI(videoUri);
+        mVideoView = findViewById(R.id.videoPreview);
+        mVideoView.setVideoURI(videoUri);
 
-        MediaController mediaController = new MediaController(this);
-        mediaController.setAnchorView(videoView);
-        videoView.setMediaController(mediaController);
+        mMediaController = new MediaController(this);
+        mMediaController.setAnchorView(mVideoView);
+        mVideoView.setMediaController(mMediaController);
 
         final boolean[] firstStart = {false};
-        videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+        mVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mp) {
-                calculateView(videoView, mp.getVideoWidth(), mp.getVideoHeight());
+                calculateView(mVideoView, mp.getVideoWidth(), mp.getVideoHeight());
                 firstStart[0] = true;
-                videoView.start();
-                videoView.pause();
-                videoView.requestFocus();
-                mediaController.show();
+                if (mVideoView != null) {
+                    mVideoView.start();
+                    mVideoView.pause();
+                    mVideoView.requestFocus();
+                }
+                if (mMediaController != null) {
+                    mMediaController.show();
+                }
             }
         });
 
@@ -69,10 +81,6 @@ public class VideoPreviewActivity extends AppCompatActivity {
                 Intent shareIntent = new Intent(Intent.ACTION_SEND);
                 shareIntent.setType("video/mp4");
                 shareIntent.putExtra(Intent.EXTRA_STREAM, videoUri);
-                // shareIntent.putExtra(Intent.EXTRA_SHORTCUT_NAME, mFilename);
-                // shareIntent.putExtra(Intent.EXTRA_TITLE, mFilename);
-                // shareIntent.putExtra(Intent.EXTRA_TITLE, mFilename);
-                // activity.setRequestedOrientation(originOrientation);
                 startActivityForResult(
                         Intent.createChooser(shareIntent, getResources().getText(R.string.share_chooser_title)), SHARE_REQUEST_CODE);
                 // Intent chooserIntent = Intent.createChooser(shareIntent, getResources().getText(R.string.share_chooser_title));
@@ -94,6 +102,17 @@ public class VideoPreviewActivity extends AppCompatActivity {
         closeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                clearResource();
+                finish();
+            }
+        });
+
+        ImageButton deleteButton = findViewById(R.id.deleteButton);
+        deleteButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                deleteVideo(videoUri);
+                clearResource();
                 finish();
             }
         });
@@ -130,24 +149,34 @@ public class VideoPreviewActivity extends AppCompatActivity {
         // 	}
         // });
 
-        videoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+        mVideoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mediaPlayer) {
                 titleBar.setVisibility(View.VISIBLE);
-                videoView.pause();
+                if (mVideoView != null) {
+                    mVideoView.pause();
+                }
             }
         });
 
-        // popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
-        //     @Override
-        //     public void onDismiss() {
-        //         videoView.stopPlayback();
-        //         activity.setRequestedOrientation(activity.getOrientationFromManifest());
-        //     }
-        // });
-
         TextView title = findViewById(R.id.previewTitle);
         title.setText(R.string.preview_title);
+    }
+
+    private void clearResource() {
+        if (mMediaController != null) {
+            mMediaController.hide();
+            mMediaController.setAnchorView(null);
+            mMediaController = null;
+        }
+
+        if (mVideoView != null) {
+            mVideoView.setMediaController(null);
+            mVideoView.setOnPreparedListener(null);
+            mVideoView.setOnCompletionListener(null);
+            mVideoView.stopPlayback();
+            mVideoView = null;
+        }
     }
 
     private void makeFullScreen() {
@@ -177,7 +206,19 @@ public class VideoPreviewActivity extends AppCompatActivity {
                 }
             }
         });
+    }
 
+    private void hideStatusBar() {
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN);
+        if (Build.VERSION.SDK_INT >= 28){
+            getWindow().getAttributes().layoutInDisplayCutoutMode
+                    = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
+    }
+
+    private void keepScreenActive() {
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     private void calculateView(VideoView videoView, int videoWidth, int videoHeight) {
@@ -195,6 +236,34 @@ public class VideoPreviewActivity extends AppCompatActivity {
         videoView.setLayoutParams(lp);
     }
 
+    private boolean deleteVideo(Uri videoUri) {
+        ContentResolver contentResolver = getContentResolver();
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                // For Android 10 (API 29) and above
+                return contentResolver.delete(videoUri, null, null) > 0;
+            } catch (SecurityException e) {
+                // If we don't have permission, try using MediaStore API
+                return deleteVideoUsingMediaStore(videoUri);
+            }
+        } else {
+            // For Android 5.0 (API 21) to Android 9 (API 28)
+            if (videoUri.getPath() != null) {
+                File file = new File(videoUri.getPath());
+                return file.exists() && file.delete();
+            }
+        }
+        return false;
+    }
+
+    private boolean deleteVideoUsingMediaStore(Uri videoUri) {
+        ContentResolver contentResolver = getContentResolver();
+        String selection = MediaStore.Video.Media._ID + "=?";
+        String[] selectionArgs = new String[]{videoUri.getLastPathSegment()};
+        return contentResolver.delete(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, selection, selectionArgs) > 0;
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -208,6 +277,7 @@ public class VideoPreviewActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        clearResource();
         super.onDestroy();
     }
 }
