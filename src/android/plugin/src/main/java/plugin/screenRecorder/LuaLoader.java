@@ -60,6 +60,8 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 	private int fListener;
 	private HBRecorder fRecorder;
 	private boolean fHasPermissions = false;
+	private boolean fIdleEnabled = true;
+
 	private int fSCREEN_RECORD_REQUEST_CODE = -1;
 	private int fSHARE_REQUEST_CODE = -2;
 	private int fPERMISSION_REQ_ID_RECORD_AUDIO = 22;
@@ -132,8 +134,28 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 			Log.d("Corona", "requestCode4: " + fPERMISSION_REQ_ID_WRITE_EXTERNAL_STORAGE);
 		}
 
+		getCurrentSystemIdleTimeFlag(L);
+
 		// Returning 1 indicates that the Lua require() function will return the above Lua library.
 		return 1;
+	}
+
+	private void getCurrentSystemIdleTimeFlag(LuaState L) {
+		L.getGlobal("system");
+		L.getField(-1, "getIdleTimer");
+		L.call(0, 1);
+		if (L.isBoolean(-1)) {
+			fIdleEnabled = L.toBoolean(-1);
+		}
+		L.pop(2);
+	}
+
+	private void setCurrentSystemIdleTimeFlag(LuaState L, boolean enable) {
+		L.getGlobal("system");
+		L.getField(-1, "setIdleTimer");
+		L.pushBoolean(enable);
+		L.call(1, 0);
+		L.pop(1);
 	}
 
 	private void quickSettings() {
@@ -447,7 +469,6 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 		if (activity == null) {
 			return;
 		}
-		quickSettings();
 		MediaProjectionManager mediaProjectionManager = (MediaProjectionManager)activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 		Intent permissionIntent = mediaProjectionManager != null ? mediaProjectionManager.createScreenCaptureIntent() : null;
 		activity.startActivityForResult(permissionIntent, fSCREEN_RECORD_REQUEST_CODE);
@@ -455,6 +476,10 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 
 	@SuppressWarnings("WeakerAccess")
 	public int start(LuaState L) {
+		if (fIdleEnabled) {
+			setCurrentSystemIdleTimeFlag(L, false);
+		}
+
 		int listenerIndex = 1;
 		if ( CoronaLua.isListener( L, listenerIndex, EVENT_NAME ) ) {
 			fListener = CoronaLua.newRef( L, listenerIndex );
@@ -496,6 +521,10 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 	@SuppressWarnings("WeakerAccess")
 	public int stop(LuaState L) {
 		fRecorder.stopScreenRecording();
+
+		if (fIdleEnabled) {
+			setCurrentSystemIdleTimeFlag(L, true);
+		}
 
 		return 0;
 	}

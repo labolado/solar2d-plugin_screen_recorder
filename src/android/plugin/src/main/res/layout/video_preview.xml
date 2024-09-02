@@ -38,6 +38,16 @@
             android:src="@android:drawable/ic_menu_share" />
 
         <ImageButton
+            android:id="@+id/deleteButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:background="@android:color/transparent"
+            android:paddingTop="16dp"
+            android:paddingEnd="64dp"
+            android:src="@android:drawable/ic_menu_delete" />
+
+        <ImageButton
             android:id="@+id/closeButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
