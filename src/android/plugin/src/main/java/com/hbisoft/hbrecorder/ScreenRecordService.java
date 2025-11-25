@@ -729,10 +729,24 @@ public class ScreenRecordService extends Service {
         videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
         videoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
 
-        mVideoEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
-        mVideoEncoder.configure(videoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-        mInputSurface = mVideoEncoder.createInputSurface();
-        mVideoEncoder.start();
+        try {
+            mVideoEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
+            mVideoEncoder.configure(videoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+            mInputSurface = mVideoEncoder.createInputSurface();
+            mVideoEncoder.start();
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "Failed to initialize video encoder", e);
+            // 清理失败的编码器
+            if (mVideoEncoder != null) {
+                try {
+                    mVideoEncoder.release();
+                } catch (Exception ex) {
+                    Log.e(TAG, "Error releasing video encoder", ex);
+                }
+                mVideoEncoder = null;
+            }
+            throw new IOException("Video encoder initialization failed", e);
+        }
 
         // 设置音频编码器
         MediaFormat audioFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, 44100, 2);
@@ -740,9 +754,33 @@ public class ScreenRecordService extends Service {
         audioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
         audioFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384);
 
-        mAudioEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC);
-        mAudioEncoder.configure(audioFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-        mAudioEncoder.start();
+        try {
+            mAudioEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC);
+            mAudioEncoder.configure(audioFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+            mAudioEncoder.start();
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "Failed to initialize audio encoder", e);
+            // 清理失败的编码器
+            if (mAudioEncoder != null) {
+                try {
+                    mAudioEncoder.release();
+                } catch (Exception ex) {
+                    Log.e(TAG, "Error releasing audio encoder", ex);
+                }
+                mAudioEncoder = null;
+            }
+            // 清理已成功的视频编码器
+            if (mVideoEncoder != null) {
+                try {
+                    mVideoEncoder.stop();
+                    mVideoEncoder.release();
+                } catch (Exception ex) {
+                    Log.e(TAG, "Error releasing video encoder during cleanup", ex);
+                }
+                mVideoEncoder = null;
+            }
+            throw new IOException("Audio encoder initialization failed", e);
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
