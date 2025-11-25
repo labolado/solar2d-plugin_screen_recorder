@@ -785,45 +785,76 @@ public class ScreenRecordService extends Service {
 
             mAudioRecord.startRecording();
             while (mIsRecording) {
-                int inputBufferIndex = mAudioEncoder.dequeueInputBuffer(10000);
-                if (inputBufferIndex >= 0) {
-                    inputBuffer = mAudioEncoder.getInputBuffer(inputBufferIndex);
-                    if (inputBuffer != null) {
-                        int bytesRead = mAudioRecord.read(inputBuffer, inputBuffer.capacity());
-                        if (bytesRead > 0) {
-                            mAudioEncoder.queueInputBuffer(inputBufferIndex, 0, bytesRead, (System.nanoTime() - startTime) / 1000, 0);
-                        }
-                    }
+                // 检查编码器有效性
+                if (mAudioEncoder == null || mAudioRecord == null) {
+                    break;
                 }
-
-                int outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, 0);
-                if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    if (!audioTrackAdded) {
-                        mAudioTrackIndex = mMediaMuxer.addTrack(mAudioEncoder.getOutputFormat());
-                        audioTrackAdded = true;
-                        checkStartMuxer();
-                    }
-                } else if (outputBufferIndex >= 0) {
-                    ByteBuffer outputBuffer = mAudioEncoder.getOutputBuffer(outputBufferIndex);
-                    if (mMuxerStarted && outputBuffer != null) {
-                        synchronized (mMuxerLock) {
-                            if (mMuxerStarted && mMediaMuxer != null) {
-                                try {
-                                    mMediaMuxer.writeSampleData(mAudioTrackIndex, outputBuffer, bufferInfo);
-                                } catch (IllegalStateException | IllegalArgumentException e) {
-                                    Log.e(TAG, "Error writing audio sample", e);
-                                }
+                
+                try {
+                    int inputBufferIndex = mAudioEncoder.dequeueInputBuffer(10000);
+                    if (inputBufferIndex >= 0) {
+                        inputBuffer = mAudioEncoder.getInputBuffer(inputBufferIndex);
+                        if (inputBuffer != null) {
+                            int bytesRead = mAudioRecord.read(inputBuffer, inputBuffer.capacity());
+                            if (bytesRead > 0) {
+                                mAudioEncoder.queueInputBuffer(inputBufferIndex, 0, bytesRead, (System.nanoTime() - startTime) / 1000, 0);
                             }
                         }
                     }
-                    mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
+
+                    int outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, 0);
+                    if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        if (!audioTrackAdded) {
+                            mAudioTrackIndex = mMediaMuxer.addTrack(mAudioEncoder.getOutputFormat());
+                            audioTrackAdded = true;
+                            checkStartMuxer();
+                        }
+                    } else if (outputBufferIndex >= 0) {
+                        ByteBuffer outputBuffer = mAudioEncoder.getOutputBuffer(outputBufferIndex);
+                        if (mMuxerStarted && outputBuffer != null) {
+                            synchronized (mMuxerLock) {
+                                if (mMuxerStarted && mMediaMuxer != null) {
+                                    try {
+                                        mMediaMuxer.writeSampleData(mAudioTrackIndex, outputBuffer, bufferInfo);
+                                    } catch (IllegalStateException | IllegalArgumentException e) {
+                                        Log.e(TAG, "Error writing audio sample", e);
+                                    }
+                                }
+                            }
+                        }
+                        mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
+                    }
+                } catch (IllegalStateException e) {
+                    Log.w(TAG, "AudioEncoder operation failed, likely stopped", e);
+                    break;
                 }
             }
 
-            mAudioRecord.stop();
-            mAudioRecord.release();
-            mAudioEncoder.stop();
-            mAudioEncoder.release();
+            // 安全停止和释放音频资源
+            if (mAudioRecord != null) {
+                try {
+                    mAudioRecord.stop();
+                } catch (IllegalStateException e) {
+                    Log.w(TAG, "AudioRecord already stopped", e);
+                }
+                try {
+                    mAudioRecord.release();
+                } catch (Exception e) {
+                    Log.w(TAG, "AudioRecord release error", e);
+                }
+            }
+            if (mAudioEncoder != null) {
+                try {
+                    mAudioEncoder.stop();
+                } catch (IllegalStateException e) {
+                    Log.w(TAG, "AudioEncoder already stopped", e);
+                }
+                try {
+                    mAudioEncoder.release();
+                } catch (Exception e) {
+                    Log.w(TAG, "AudioEncoder release error", e);
+                }
+            }
             // Log.d(TAG, "AudioEncoder stop");
         });
 
@@ -838,33 +869,54 @@ public class ScreenRecordService extends Service {
             long startTime = System.nanoTime();
 
             while (mIsRecording) {
-                int outputBufferIndex = mVideoEncoder.dequeueOutputBuffer(bufferInfo, 10000);
-                if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    if (!videoTrackAdded) {
-                        mVideoTrackIndex = mMediaMuxer.addTrack(mVideoEncoder.getOutputFormat());
-                        videoTrackAdded = true;
-                        checkStartMuxer();
-                    }
-                } else if (outputBufferIndex >= 0) {
-                    ByteBuffer outputBuffer = mVideoEncoder.getOutputBuffer(outputBufferIndex);
-                    bufferInfo.presentationTimeUs = (System.nanoTime() - startTime) / 1000;
-                    if (mMuxerStarted && outputBuffer != null) {
-                        synchronized (mMuxerLock) {
-                            if (mMuxerStarted && mMediaMuxer != null) {
-                                try {
-                                    mMediaMuxer.writeSampleData(mVideoTrackIndex, outputBuffer, bufferInfo);
-                                } catch (IllegalStateException | IllegalArgumentException e) {
-                                    Log.e(TAG, "Error writing video sample", e);
+                // 检查编码器有效性，避免在停止过程中崩溃
+                if (mVideoEncoder == null) {
+                    break;
+                }
+                
+                try {
+                    int outputBufferIndex = mVideoEncoder.dequeueOutputBuffer(bufferInfo, 10000);
+                    if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        if (!videoTrackAdded) {
+                            mVideoTrackIndex = mMediaMuxer.addTrack(mVideoEncoder.getOutputFormat());
+                            videoTrackAdded = true;
+                            checkStartMuxer();
+                        }
+                    } else if (outputBufferIndex >= 0) {
+                        ByteBuffer outputBuffer = mVideoEncoder.getOutputBuffer(outputBufferIndex);
+                        bufferInfo.presentationTimeUs = (System.nanoTime() - startTime) / 1000;
+                        if (mMuxerStarted && outputBuffer != null) {
+                            synchronized (mMuxerLock) {
+                                if (mMuxerStarted && mMediaMuxer != null) {
+                                    try {
+                                        mMediaMuxer.writeSampleData(mVideoTrackIndex, outputBuffer, bufferInfo);
+                                    } catch (IllegalStateException | IllegalArgumentException e) {
+                                        Log.e(TAG, "Error writing video sample", e);
+                                    }
                                 }
                             }
                         }
+                        mVideoEncoder.releaseOutputBuffer(outputBufferIndex, false);
                     }
-                    mVideoEncoder.releaseOutputBuffer(outputBufferIndex, false);
+                } catch (IllegalStateException e) {
+                    Log.w(TAG, "VideoEncoder dequeueOutputBuffer failed, likely stopped", e);
+                    break;
                 }
             }
 
-            mVideoEncoder.stop();
-            mVideoEncoder.release();
+            // 安全停止和释放编码器
+            if (mVideoEncoder != null) {
+                try {
+                    mVideoEncoder.stop();
+                } catch (IllegalStateException e) {
+                    Log.w(TAG, "VideoEncoder already stopped", e);
+                }
+                try {
+                    mVideoEncoder.release();
+                } catch (Exception e) {
+                    Log.w(TAG, "VideoEncoder release error", e);
+                }
+            }
             // Log.d(TAG, "VideoEncoder stop");
         });
 
@@ -967,21 +1019,10 @@ public class ScreenRecordService extends Service {
             }
         }
 
-        // if (mVideoEncoder != null) {
-        //     mVideoEncoder.stop();
-        //     mVideoEncoder.release();
-        //     mVideoEncoder = null;
-        // }
-        // if (mAudioEncoder != null) {
-        //     mAudioEncoder.stop();
-        //     mAudioEncoder.release();
-        //     mAudioEncoder = null;
-        // }
-        // if (mAudioRecord != null) {
-        //     mAudioRecord.stop();
-        //     mAudioRecord.release();
-        //     mAudioRecord = null;
-        // }
+        // 清理编码器资源（由线程内部安全释放，这里只清空引用）
+        mVideoEncoder = null;
+        mAudioEncoder = null;
+        mAudioRecord = null;
 
         if (mVirtualDisplay != null) {
             mVirtualDisplay.release();
