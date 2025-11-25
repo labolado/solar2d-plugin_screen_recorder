@@ -182,6 +182,14 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
     @Override
 	public void onHandleRequestPermissionsResult(CoronaActivity coronaActivity, int requestCode, String[] permissions, int[] grantResults) {
 		Log.d("Corona", "onHandleRequestPermissionsResult: requestCode = " + requestCode);
+		
+		// 检查权限结果数组是否为空（用户取消或系统异常）
+		if (grantResults == null || grantResults.length == 0) {
+			Log.w("Corona", "Permission request cancelled or returned empty results");
+			fHasPermissions = false;
+			return;
+		}
+		
 		// if (fPERMISSION_REQ_POST_NOTIFICATIONS == requestCode) {
 		// 	if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 		// 		checkSelfPermission(Manifest.permission.RECORD_AUDIO, fPERMISSION_REQ_ID_RECORD_AUDIO);
