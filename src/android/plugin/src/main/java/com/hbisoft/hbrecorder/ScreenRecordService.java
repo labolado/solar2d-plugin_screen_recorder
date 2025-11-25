@@ -810,9 +810,17 @@ public class ScreenRecordService extends Service {
                                 Log.w(TAG, "MediaMuxer is null, stopping audio encoding");
                                 break;
                             }
-                            mAudioTrackIndex = mMediaMuxer.addTrack(mAudioEncoder.getOutputFormat());
-                            audioTrackAdded = true;
-                            checkStartMuxer();
+                            try {
+                                MediaFormat outputFormat = mAudioEncoder.getOutputFormat();
+                                Log.d(TAG, "Audio encoder output format: " + outputFormat);
+                                mAudioTrackIndex = mMediaMuxer.addTrack(outputFormat);
+                                audioTrackAdded = true;
+                                checkStartMuxer();
+                            } catch (IllegalArgumentException e) {
+                                Log.e(TAG, "Failed to add audio track: invalid format", e);
+                                // 格式无效，退出编码循环
+                                break;
+                            }
                         }
                     } else if (outputBufferIndex >= 0) {
                         ByteBuffer outputBuffer = mAudioEncoder.getOutputBuffer(outputBufferIndex);
@@ -893,9 +901,17 @@ public class ScreenRecordService extends Service {
                                 Log.w(TAG, "MediaMuxer is null, stopping video encoding");
                                 break;
                             }
-                            mVideoTrackIndex = mMediaMuxer.addTrack(mVideoEncoder.getOutputFormat());
-                            videoTrackAdded = true;
-                            checkStartMuxer();
+                            try {
+                                MediaFormat outputFormat = mVideoEncoder.getOutputFormat();
+                                Log.d(TAG, "Video encoder output format: " + outputFormat);
+                                mVideoTrackIndex = mMediaMuxer.addTrack(outputFormat);
+                                videoTrackAdded = true;
+                                checkStartMuxer();
+                            } catch (IllegalArgumentException e) {
+                                Log.e(TAG, "Failed to add video track: invalid format", e);
+                                // 格式无效，退出编码循环
+                                break;
+                            }
                         }
                     } else if (outputBufferIndex >= 0) {
                         ByteBuffer outputBuffer = mVideoEncoder.getOutputBuffer(outputBufferIndex);
