@@ -805,6 +805,11 @@ public class ScreenRecordService extends Service {
                     int outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, 0);
                     if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                         if (!audioTrackAdded) {
+                            // 检查 mMediaMuxer 是否已被释放（避免 NPE）
+                            if (mMediaMuxer == null) {
+                                Log.w(TAG, "MediaMuxer is null, stopping audio encoding");
+                                break;
+                            }
                             mAudioTrackIndex = mMediaMuxer.addTrack(mAudioEncoder.getOutputFormat());
                             audioTrackAdded = true;
                             checkStartMuxer();
@@ -883,6 +888,11 @@ public class ScreenRecordService extends Service {
                     int outputBufferIndex = mVideoEncoder.dequeueOutputBuffer(bufferInfo, 10000);
                     if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                         if (!videoTrackAdded) {
+                            // 检查 mMediaMuxer 是否已被释放（避免 NPE）
+                            if (mMediaMuxer == null) {
+                                Log.w(TAG, "MediaMuxer is null, stopping video encoding");
+                                break;
+                            }
                             mVideoTrackIndex = mMediaMuxer.addTrack(mVideoEncoder.getOutputFormat());
                             videoTrackAdded = true;
                             checkStartMuxer();
