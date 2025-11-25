@@ -824,6 +824,11 @@ public class ScreenRecordService extends Service {
                         }
                         mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
                     }
+                } catch (MediaCodec.CodecException e) {
+                    // 捕获系统资源管理器强制回收编码器的异常
+                    Log.e(TAG, "AudioEncoder CodecException (likely released by system resource manager)", e);
+                    mAudioEncoder = null;  // 立即置空，防止后续访问
+                    break;
                 } catch (IllegalStateException e) {
                     Log.w(TAG, "AudioEncoder operation failed, likely stopped", e);
                     break;
@@ -898,6 +903,11 @@ public class ScreenRecordService extends Service {
                         }
                         mVideoEncoder.releaseOutputBuffer(outputBufferIndex, false);
                     }
+                } catch (MediaCodec.CodecException e) {
+                    // 捕获系统资源管理器强制回收编码器的异常
+                    Log.e(TAG, "VideoEncoder CodecException (likely released by system resource manager)", e);
+                    mVideoEncoder = null;  // 立即置空，防止后续访问
+                    break;
                 } catch (IllegalStateException e) {
                     Log.w(TAG, "VideoEncoder dequeueOutputBuffer failed, likely stopped", e);
                     break;
