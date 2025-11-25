@@ -969,12 +969,33 @@ public class ScreenRecordService extends Service {
     }
 
     private void startFgs(int notificationId, Notification notificaton) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE){
-            startForeground(notificationId, notificaton, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION | ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(notificationId, notificaton, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
-        } else {
-            startForeground(notificationId, notificaton);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE){
+                startForeground(notificationId, notificaton, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION | ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(notificationId, notificaton, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+            } else {
+                startForeground(notificationId, notificaton);
+            }
+        } catch (SecurityException e) {
+            // Android 14+ 可能因权限或配置问题抛出 SecurityException
+            Log.e(TAG, "Failed to start foreground service with specific types, trying fallback", e);
+            try {
+                // 降级：只使用 MEDIA_PROJECTION 类型
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(notificationId, notificaton, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+                } else {
+                    startForeground(notificationId, notificaton);
+                }
+            } catch (SecurityException e2) {
+                // 最后降级：不指定类型
+                Log.e(TAG, "Failed to start foreground service with MEDIA_PROJECTION, using default", e2);
+                try {
+                    startForeground(notificationId, notificaton);
+                } catch (Exception e3) {
+                    Log.e(TAG, "Failed to start foreground service completely", e3);
+                }
+            }
         }
     }
 
