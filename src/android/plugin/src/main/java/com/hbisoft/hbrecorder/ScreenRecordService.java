@@ -111,6 +111,7 @@ public class ScreenRecordService extends Service {
     private MediaProjectionManager mProjectionManager;
     private volatile boolean mIsRecording = false;
     private volatile boolean mMuxerStarted = false;
+    private volatile boolean mMediaRecorderStarted = false;
     private final Object mMuxerLock = new Object();
     private AudioRecord mAudioRecord;
     private Thread mAudioThread;
@@ -365,6 +366,7 @@ public class ScreenRecordService extends Service {
                     //Start Recording
                     try {
                         mMediaRecorder.start();
+                        mMediaRecorderStarted = true;
                         ResultReceiver receiver = intent.getParcelableExtra(ScreenRecordService.BUNDLED_LISTENER);
                         Bundle bundle = new Bundle();
                         bundle.putInt(ON_START_KEY, ON_START);
@@ -372,6 +374,7 @@ public class ScreenRecordService extends Service {
                             receiver.send(Activity.RESULT_OK, bundle);
                         }
                     } catch (Exception e) {
+                        mMediaRecorderStarted = false;
                         // From the tests I've done, this can happen if another application is using the mic or if an unsupported video encoder was selected
                         ResultReceiver receiver = intent.getParcelableExtra(ScreenRecordService.BUNDLED_LISTENER);
                         Bundle bundle = new Bundle();
@@ -987,10 +990,17 @@ public class ScreenRecordService extends Service {
 
         if (mMediaRecorder != null) {
             mMediaRecorder.setOnErrorListener(null);
-            // mMediaRecorder.reset();
-            mMediaRecorder.stop();
-            mMediaRecorder.release();
-            mMediaRecorder = null;
+            try {
+                if (mMediaRecorderStarted) {
+                    mMediaRecorder.stop();
+                }
+            } catch (IllegalStateException e) {
+                Log.w(TAG, "Skipping MediaRecorder.stop() due to state error", e);
+            } finally {
+                mMediaRecorder.release();
+                mMediaRecorder = null;
+                mMediaRecorderStarted = false;
+            }
         }
 
         if (mMediaProjection != null) {
