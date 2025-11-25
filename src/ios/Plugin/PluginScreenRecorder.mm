@@ -27,7 +27,7 @@ class PluginScreenRecorder
 		PluginScreenRecorder();
 
 	public:
-		bool Initialize( CoronaLuaRef listener );
+		bool Initialize( lua_State *L, CoronaLuaRef listener );
 
 	public:
 		CoronaLuaRef GetListener() const { return fListener; }
@@ -66,17 +66,16 @@ PluginScreenRecorder::PluginScreenRecorder()
 }
 
 bool
-PluginScreenRecorder::Initialize( CoronaLuaRef listener )
+PluginScreenRecorder::Initialize( lua_State *L, CoronaLuaRef listener )
 {
-	// Can only initialize listener once
-	bool result = ( NULL == fListener );
+    if ( fListener )
+    {
+        CoronaLuaDeleteRef( L, fListener );
+    }
 
-	if ( result )
-	{
-		fListener = listener;
-	}
+    fListener = listener;
 
-	return result;
+	return true;
 }
 
 int
@@ -137,7 +136,7 @@ PluginScreenRecorder::init( lua_State *L )
 		Self *library = ToLibrary( L );
 
 		CoronaLuaRef listener = CoronaLuaNewRef( L, listenerIndex );
-		library->Initialize( listener );
+		library->Initialize( L, listener );
 	}
 
 	return 0;
@@ -148,36 +147,53 @@ PluginScreenRecorder::init( lua_State *L )
 int
 PluginScreenRecorder::start(lua_State *L)
 {
+    Self *library = ToLibrary( L );
     int listenerIndex = 1;
-	CoronaLuaRef listener = NULL;
+    
     if ( CoronaLuaIsListener( L, listenerIndex, kEvent ) )
     {
-        listener = CoronaLuaNewRef( L, listenerIndex );
+        CoronaLuaRef listener = CoronaLuaNewRef( L, listenerIndex );
+        library->Initialize( L, listener );
     }
+    
     RPScreenRecorder *r = [RPScreenRecorder sharedRecorder];
     if ( !r.available) {
         NSLog(@"ReplayKit unavailable");
         return 0;
     }
+    
+    // 获取 Runtime 引用，用于在异步回调中获取安全的 Lua State
+    id<CoronaRuntime> runtime = (id<CoronaRuntime>)CoronaLuaGetContext( L );
+    
     if ( !r.recording ) {
         [r startRecordingWithHandler:^(NSError * _Nullable error) {
-            bool isError = false;
-        	if ( error ) {
-	            NSLog(@"Record start error info: %@", error.localizedDescription);
-                isError = true;
-        	}
+            // 切换回主线程处理 Lua 事件
+            dispatch_async(dispatch_get_main_queue(), ^{
+                bool isError = false;
+                if ( error ) {
+                    NSLog(@"Record start error info: %@", error.localizedDescription);
+                    isError = true;
+                }
 
-           	if ( listener ) {
-                // Create event and add message to it
-                CoronaLuaNewEvent( L, kEvent );
-                lua_pushboolean( L, isError );
-                lua_setfield( L, -2, "isError" );
-                lua_pushstring( L, [error.localizedDescription UTF8String] );
-                lua_setfield( L, -2, "errorMessage" );
+                lua_State *L_safe = [runtime L];
+                CoronaLuaRef listener = library->GetListener();
+                
+                if ( L_safe && listener ) {
+                    // Create event and add message to it
+                    CoronaLuaNewEvent( L_safe, kEvent );
+                    lua_pushboolean( L_safe, isError );
+                    lua_setfield( L_safe, -2, "isError" );
+                    if (error) {
+                        lua_pushstring( L_safe, [error.localizedDescription UTF8String] );
+                    } else {
+                        lua_pushstring( L_safe, "" );
+                    }
+                    lua_setfield( L_safe, -2, "errorMessage" );
 
-                // Dispatch event to library's listener
-                CoronaLuaDispatchEvent( L, listener, 0 );
-            }
+                    // Dispatch event to library's listener
+                    CoronaLuaDispatchEvent( L_safe, listener, 0 );
+                }
+            });
         }];
     }
     return 0;
@@ -188,27 +204,35 @@ int
 PluginScreenRecorder::stop(lua_State *L)
 {
     Self *library = ToLibrary( L );
-    // NSLog(@"previewViewController is null: %@", library->GetPreviewViewController() == NULL ? @"YES" : @"NO");
     
     RPScreenRecorder *r = [RPScreenRecorder sharedRecorder];
     if ( !r.available) {
         NSLog(@"ReplayKit unavailable");
         return 0;
     }
+    
+    // 获取 Runtime 引用
+    id<CoronaRuntime> runtime = (id<CoronaRuntime>)CoronaLuaGetContext( L );
+    
     if ( r.recording ) {
         [r stopRecordingWithHandler:^(RPPreviewViewController * _Nullable previewViewController, NSError * _Nullable error) {
-            if ( error ) {
-                NSLog(@"Record stop error info: %@", error.localizedDescription);
-            } else {
-                id<CoronaRuntime> runtime = (id<CoronaRuntime>)CoronaLuaGetContext( L );
-                if ( UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ){
-                    previewViewController.modalPresentationStyle = UIModalPresentationPopover;
-                    previewViewController.popoverPresentationController.sourceRect = CGRect();
-                    previewViewController.popoverPresentationController.sourceView = [runtime.appViewController view];
+            // 切换回主线程处理 UI 和 Lua
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if ( error ) {
+                    NSLog(@"Record stop error info: %@", error.localizedDescription);
+                } else {
+                    if ( UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ){
+                        previewViewController.modalPresentationStyle = UIModalPresentationPopover;
+                        // 修正 Popover 位置为屏幕中心，避免指向左上角 (0,0)
+                        UIView *view = [runtime.appViewController view];
+                        previewViewController.popoverPresentationController.sourceView = view;
+                        previewViewController.popoverPresentationController.sourceRect = CGRectMake(view.bounds.size.width / 2, view.bounds.size.height / 2, 1, 1);
+                        previewViewController.popoverPresentationController.permittedArrowDirections = 0; // 不显示箭头
+                    }
+                    previewViewController.previewControllerDelegate = (id<RPPreviewViewControllerDelegate>)library->GetPreviewViewController();
+                    [runtime.appViewController presentViewController:previewViewController animated:YES completion:nil];
                 }
-                previewViewController.previewControllerDelegate = (id<RPPreviewViewControllerDelegate>)library->GetPreviewViewController();
-                [runtime.appViewController presentViewController:previewViewController animated:YES completion:nil];
-            }
+            });
         }];
     }
     
