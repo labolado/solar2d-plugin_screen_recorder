@@ -172,7 +172,14 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 			if (resultCode == RESULT_OK) {
 				//Start screen recording
 				setOutputPath();
-				fRecorder.startScreenRecording(data, resultCode);
+				// 使用Handler.post延迟执行，避免FileObserver的I/O操作阻塞主线程
+				// 这样可以让主线程快速返回，I/O操作在下一个消息循环中执行
+				new android.os.Handler(android.os.Looper.getMainLooper()).post(new Runnable() {
+					@Override
+					public void run() {
+						fRecorder.startScreenRecording(data, resultCode);
+					}
+				});
 			}
 		} else if (requestCode == fSHARE_REQUEST_CODE) {
 			coronaActivity.setRequestedOrientation(coronaActivity.getOrientationFromManifest());
