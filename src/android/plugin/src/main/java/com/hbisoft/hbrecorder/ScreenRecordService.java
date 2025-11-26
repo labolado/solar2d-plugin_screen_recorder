@@ -823,24 +823,28 @@ public class ScreenRecordService extends Service {
 
             mAudioRecord.startRecording();
             while (mIsRecording) {
-                // 检查编码器有效性
-                if (mAudioEncoder == null || mAudioRecord == null) {
+                // 使用局部引用，避免在操作过程中现场被置空
+                MediaCodec audioEncoder = mAudioEncoder;
+                AudioRecord audioRecordLocal = mAudioRecord;
+
+                if (audioEncoder == null || audioRecordLocal == null) {
+                    Log.w(TAG, "AudioEncoder or AudioRecord released, stopping audio capture thread");
                     break;
                 }
-                
+
                 try {
-                    int inputBufferIndex = mAudioEncoder.dequeueInputBuffer(10000);
+                    int inputBufferIndex = audioEncoder.dequeueInputBuffer(10000);
                     if (inputBufferIndex >= 0) {
-                        inputBuffer = mAudioEncoder.getInputBuffer(inputBufferIndex);
+                        inputBuffer = audioEncoder.getInputBuffer(inputBufferIndex);
                         if (inputBuffer != null) {
-                            int bytesRead = mAudioRecord.read(inputBuffer, inputBuffer.capacity());
+                            int bytesRead = audioRecordLocal.read(inputBuffer, inputBuffer.capacity());
                             if (bytesRead > 0) {
-                                mAudioEncoder.queueInputBuffer(inputBufferIndex, 0, bytesRead, (System.nanoTime() - startTime) / 1000, 0);
+                                audioEncoder.queueInputBuffer(inputBufferIndex, 0, bytesRead, (System.nanoTime() - startTime) / 1000, 0);
                             }
                         }
                     }
 
-                    int outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, 0);
+                    int outputBufferIndex = audioEncoder.dequeueOutputBuffer(bufferInfo, 0);
                     if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                         if (!audioTrackAdded) {
                             // 检查 mMediaMuxer 是否已被释放（避免 NPE）
@@ -849,7 +853,7 @@ public class ScreenRecordService extends Service {
                                 break;
                             }
                             try {
-                                MediaFormat outputFormat = mAudioEncoder.getOutputFormat();
+                                MediaFormat outputFormat = audioEncoder.getOutputFormat();
                                 Log.d(TAG, "Audio encoder output format: " + outputFormat);
                                 mAudioTrackIndex = mMediaMuxer.addTrack(outputFormat);
                                 audioTrackAdded = true;
@@ -861,7 +865,7 @@ public class ScreenRecordService extends Service {
                             }
                         }
                     } else if (outputBufferIndex >= 0) {
-                        ByteBuffer outputBuffer = mAudioEncoder.getOutputBuffer(outputBufferIndex);
+                        ByteBuffer outputBuffer = audioEncoder.getOutputBuffer(outputBufferIndex);
                         if (mMuxerStarted && outputBuffer != null) {
                             synchronized (mMuxerLock) {
                                 if (mMuxerStarted && mMediaMuxer != null) {
@@ -873,7 +877,7 @@ public class ScreenRecordService extends Service {
                                 }
                             }
                         }
-                        mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
+                        audioEncoder.releaseOutputBuffer(outputBufferIndex, false);
                     }
                 } catch (MediaCodec.CodecException e) {
                     // 捕获系统资源管理器强制回收编码器的异常
@@ -925,13 +929,15 @@ public class ScreenRecordService extends Service {
             long startTime = System.nanoTime();
 
             while (mIsRecording) {
-                // 检查编码器有效性，避免在停止过程中崩溃
-                if (mVideoEncoder == null) {
+                // 使用局部引用，避免在操作过程中现场被置空
+                MediaCodec videoEncoder = mVideoEncoder;
+                if (videoEncoder == null) {
+                    Log.w(TAG, "VideoEncoder released, stopping video thread");
                     break;
                 }
                 
                 try {
-                    int outputBufferIndex = mVideoEncoder.dequeueOutputBuffer(bufferInfo, 10000);
+                    int outputBufferIndex = videoEncoder.dequeueOutputBuffer(bufferInfo, 10000);
                     if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                         if (!videoTrackAdded) {
                             // 检查 mMediaMuxer 是否已被释放（避免 NPE）
@@ -940,7 +946,7 @@ public class ScreenRecordService extends Service {
                                 break;
                             }
                             try {
-                                MediaFormat outputFormat = mVideoEncoder.getOutputFormat();
+                                MediaFormat outputFormat = videoEncoder.getOutputFormat();
                                 Log.d(TAG, "Video encoder output format: " + outputFormat);
                                 mVideoTrackIndex = mMediaMuxer.addTrack(outputFormat);
                                 videoTrackAdded = true;
@@ -952,7 +958,7 @@ public class ScreenRecordService extends Service {
                             }
                         }
                     } else if (outputBufferIndex >= 0) {
-                        ByteBuffer outputBuffer = mVideoEncoder.getOutputBuffer(outputBufferIndex);
+                        ByteBuffer outputBuffer = videoEncoder.getOutputBuffer(outputBufferIndex);
                         bufferInfo.presentationTimeUs = (System.nanoTime() - startTime) / 1000;
                         if (mMuxerStarted && outputBuffer != null) {
                             synchronized (mMuxerLock) {
@@ -965,7 +971,7 @@ public class ScreenRecordService extends Service {
                                 }
                             }
                         }
-                        mVideoEncoder.releaseOutputBuffer(outputBufferIndex, false);
+                        videoEncoder.releaseOutputBuffer(outputBufferIndex, false);
                     }
                 } catch (MediaCodec.CodecException e) {
                     // 捕获系统资源管理器强制回收编码器的异常
