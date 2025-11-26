@@ -1,3 +1,4 @@
+-- Version: 7.0 (Stability improvements)
 local metadata =
 {
 	plugin =
