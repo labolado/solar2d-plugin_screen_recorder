@@ -821,23 +821,33 @@ public class ScreenRecordService extends Service {
             boolean audioTrackAdded = false;
             long startTime = System.nanoTime();
 
-            mAudioRecord.startRecording();
+            // Capture references to local variables to ensure thread safety and proper cleanup
+            // regardless of what happens to the global member variables (e.g. in resetAll).
+            final AudioRecord audioRecord = mAudioRecord;
+            final MediaCodec audioEncoder = mAudioEncoder;
+
+            if (audioRecord == null || audioEncoder == null) {
+                Log.w(TAG, "AudioRecord or AudioEncoder is null at start of thread, aborting");
+                return;
+            }
+
+            try {
+                audioRecord.startRecording();
+            } catch (IllegalStateException e) {
+                Log.e(TAG, "AudioRecord.startRecording failed", e);
+                return;
+            }
+
             while (mIsRecording) {
-                // 使用局部引用，避免在操作过程中现场被置空
-                MediaCodec audioEncoder = mAudioEncoder;
-                AudioRecord audioRecordLocal = mAudioRecord;
-
-                if (audioEncoder == null || audioRecordLocal == null) {
-                    Log.w(TAG, "AudioEncoder or AudioRecord released, stopping audio capture thread");
-                    break;
-                }
-
+                // Double check they are not released/invalid if possible, 
+                // but since we have local references, we primarily check if we should stop.
+                
                 try {
                     int inputBufferIndex = audioEncoder.dequeueInputBuffer(10000);
                     if (inputBufferIndex >= 0) {
                         inputBuffer = audioEncoder.getInputBuffer(inputBufferIndex);
                         if (inputBuffer != null) {
-                            int bytesRead = audioRecordLocal.read(inputBuffer, inputBuffer.capacity());
+                            int bytesRead = audioRecord.read(inputBuffer, inputBuffer.capacity());
                             if (bytesRead > 0) {
                                 audioEncoder.queueInputBuffer(inputBufferIndex, 0, bytesRead, (System.nanoTime() - startTime) / 1000, 0);
                             }
@@ -847,7 +857,7 @@ public class ScreenRecordService extends Service {
                     int outputBufferIndex = audioEncoder.dequeueOutputBuffer(bufferInfo, 0);
                     if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                         if (!audioTrackAdded) {
-                            // 检查 mMediaMuxer 是否已被释放（避免 NPE）
+                            // Check global muxer state
                             if (mMediaMuxer == null) {
                                 Log.w(TAG, "MediaMuxer is null, stopping audio encoding");
                                 break;
@@ -860,7 +870,6 @@ public class ScreenRecordService extends Service {
                                 checkStartMuxer();
                             } catch (IllegalArgumentException e) {
                                 Log.e(TAG, "Failed to add audio track: invalid format", e);
-                                // 格式无效，退出编码循环
                                 break;
                             }
                         }
@@ -880,42 +889,42 @@ public class ScreenRecordService extends Service {
                         audioEncoder.releaseOutputBuffer(outputBufferIndex, false);
                     }
                 } catch (MediaCodec.CodecException e) {
-                    // 捕获系统资源管理器强制回收编码器的异常
                     Log.e(TAG, "AudioEncoder CodecException (likely released by system resource manager)", e);
-                    mAudioEncoder = null;  // 立即置空，防止后续访问
                     break;
                 } catch (IllegalStateException e) {
                     Log.w(TAG, "AudioEncoder operation failed, likely stopped", e);
                     break;
+                } catch (Exception e) {
+                    Log.e(TAG, "Unexpected exception in audio thread", e);
+                    break;
                 }
             }
 
-            // 安全停止和释放音频资源
-            if (mAudioRecord != null) {
+            // Cleanup using local references
+            if (audioRecord != null) {
                 try {
-                    mAudioRecord.stop();
+                    audioRecord.stop();
                 } catch (IllegalStateException e) {
                     Log.w(TAG, "AudioRecord already stopped", e);
                 }
                 try {
-                    mAudioRecord.release();
+                    audioRecord.release();
                 } catch (Exception e) {
                     Log.w(TAG, "AudioRecord release error", e);
                 }
             }
-            if (mAudioEncoder != null) {
+            if (audioEncoder != null) {
                 try {
-                    mAudioEncoder.stop();
+                    audioEncoder.stop();
                 } catch (IllegalStateException e) {
                     Log.w(TAG, "AudioEncoder already stopped", e);
                 }
                 try {
-                    mAudioEncoder.release();
+                    audioEncoder.release();
                 } catch (Exception e) {
                     Log.w(TAG, "AudioEncoder release error", e);
                 }
             }
-            // Log.d(TAG, "AudioEncoder stop");
         });
 
         mAudioThread.start();
@@ -928,19 +937,20 @@ public class ScreenRecordService extends Service {
             boolean videoTrackAdded = false;
             long startTime = System.nanoTime();
 
+            // Capture reference to local variable for thread safety
+            final MediaCodec videoEncoder = mVideoEncoder;
+
+            if (videoEncoder == null) {
+                Log.w(TAG, "VideoEncoder is null at start of thread, aborting");
+                return;
+            }
+
             while (mIsRecording) {
-                // 使用局部引用，避免在操作过程中现场被置空
-                MediaCodec videoEncoder = mVideoEncoder;
-                if (videoEncoder == null) {
-                    Log.w(TAG, "VideoEncoder released, stopping video thread");
-                    break;
-                }
-                
                 try {
                     int outputBufferIndex = videoEncoder.dequeueOutputBuffer(bufferInfo, 10000);
                     if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                         if (!videoTrackAdded) {
-                            // 检查 mMediaMuxer 是否已被释放（避免 NPE）
+                            // Check mMediaMuxer validity
                             if (mMediaMuxer == null) {
                                 Log.w(TAG, "MediaMuxer is null, stopping video encoding");
                                 break;
@@ -953,7 +963,6 @@ public class ScreenRecordService extends Service {
                                 checkStartMuxer();
                             } catch (IllegalArgumentException e) {
                                 Log.e(TAG, "Failed to add video track: invalid format", e);
-                                // 格式无效，退出编码循环
                                 break;
                             }
                         }
@@ -974,25 +983,26 @@ public class ScreenRecordService extends Service {
                         videoEncoder.releaseOutputBuffer(outputBufferIndex, false);
                     }
                 } catch (MediaCodec.CodecException e) {
-                    // 捕获系统资源管理器强制回收编码器的异常
                     Log.e(TAG, "VideoEncoder CodecException (likely released by system resource manager)", e);
-                    mVideoEncoder = null;  // 立即置空，防止后续访问
                     break;
                 } catch (IllegalStateException e) {
                     Log.w(TAG, "VideoEncoder dequeueOutputBuffer failed, likely stopped", e);
                     break;
+                } catch (Exception e) {
+                     Log.e(TAG, "Unexpected exception in video thread", e);
+                     break;
                 }
             }
 
-            // 安全停止和释放编码器
-            if (mVideoEncoder != null) {
+            // Safe cleanup using local reference
+            if (videoEncoder != null) {
                 try {
-                    mVideoEncoder.stop();
+                    videoEncoder.stop();
                 } catch (IllegalStateException e) {
                     Log.w(TAG, "VideoEncoder already stopped", e);
                 }
                 try {
-                    mVideoEncoder.release();
+                    videoEncoder.release();
                 } catch (Exception e) {
                     Log.w(TAG, "VideoEncoder release error", e);
                 }
