@@ -10,7 +10,6 @@ local metadata =
 			usesPermissions =
 			{
                 "android.permission.WRITE_EXTERNAL_STORAGE",
-                "android.permission.WRITE_INTERNAL_STORAGE",
                 "android.permission.RECORD_AUDIO",
                 "android.permission.FOREGROUND_SERVICE",
                 "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",

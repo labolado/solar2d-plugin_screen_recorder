@@ -218,9 +218,32 @@ PluginScreenRecorder::stop(lua_State *L)
         [r stopRecordingWithHandler:^(RPPreviewViewController * _Nullable previewViewController, NSError * _Nullable error) {
             // 切换回主线程处理 UI 和 Lua
             dispatch_async(dispatch_get_main_queue(), ^{
+                bool isError = false;
                 if ( error ) {
                     NSLog(@"Record stop error info: %@", error.localizedDescription);
-                } else {
+                    isError = true;
+                }
+                
+                // Notify Lua listener
+                lua_State *L_safe = [runtime L];
+                CoronaLuaRef listener = library->GetListener();
+                
+                if ( L_safe && listener ) {
+                    CoronaLuaNewEvent( L_safe, kEvent );
+                    lua_pushboolean( L_safe, isError );
+                    lua_setfield( L_safe, -2, "isError" );
+                    if (error) {
+                        lua_pushstring( L_safe, [error.localizedDescription UTF8String] );
+                    } else {
+                        lua_pushstring( L_safe, "" );
+                    }
+                    lua_setfield( L_safe, -2, "errorMessage" );
+                    
+                    // Dispatch event to library's listener
+                    CoronaLuaDispatchEvent( L_safe, listener, 0 );
+                }
+
+                if ( !isError ) {
                     if ( UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ){
                         previewViewController.modalPresentationStyle = UIModalPresentationPopover;
                         // 修正 Popover 位置为屏幕中心，避免指向左上角 (0,0)

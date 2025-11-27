@@ -712,6 +712,7 @@ public class ScreenRecordService extends Service {
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     private void setupMuxer(String outputPath, int width, int height) throws IOException {
         mMediaMuxer = new MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+        setupEncoder(width, height);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
