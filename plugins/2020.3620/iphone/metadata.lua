@@ -1,4 +1,4 @@
--- Version: 7.1 (Thread safety fix for NPE)
+-- Version: 7.2 (Essential fixes: Android encoder init, iOS build settings & Lua events)
 local metadata =
 {
 	plugin =
