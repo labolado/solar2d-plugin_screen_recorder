@@ -1,3 +1,4 @@
+-- Version: 7.1 (Thread safety fix for NPE)
 local metadata =
 {
 	plugin =
