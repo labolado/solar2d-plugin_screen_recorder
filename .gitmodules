@@ -1,0 +1,3 @@
+[submodule "external/HBRecorder"]
+	path = external/HBRecorder
+	url = https://github.com/labolado/HBRecorder.git
