@@ -1,3 +1,4 @@
+-- Version: 7.3 (MediaStore SecurityException fix + HBRecorder submodule refactor)
 local metadata =
 {
 	plugin =
