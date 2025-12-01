@@ -20,7 +20,8 @@ android {
 dependencies {
     implementation ':Corona@aar'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation project(':hbrecorder')
+    // Use api instead of implementation to include hbrecorder classes in final AAR
+    api project(':hbrecorder')
 }
 
 tasks.register("extractPluginJar") {
@@ -74,29 +75,81 @@ tasks.register("deployToLocalSolar2DRepo", Tar) {
     }
 }
 
-task deployPluginToDirectory() {
+// Create fat AAR by merging hbrecorder classes into plugin AAR
+tasks.register('createFatAar') {
     group "Solar2Dev"
-    dependsOn assemble
+    dependsOn 'assembleRelease', ':hbrecorder:assembleRelease'
+    
+    doLast {
+        // Paths
+        def releaseAar = file("$buildDir/outputs/aar/${project.name}-release.aar")
+        def tempDir = file("$buildDir/tmp/fataar")
+        def fatAar = file("$buildDir/outputs/aar/${project.name}-release-fat.aar")
+        
+        // Clean temp dir
+        delete tempDir
+        tempDir.mkdirs()
+        
+        // Extract original AAR
+        copy {
+            from zipTree(releaseAar)
+            into tempDir
+        }
+        
+        // Extract and merge classes from hbrecorder
+        def pluginClassesJar = file("$tempDir/classes.jar")
+        def mergedClassesDir = file("$buildDir/tmp/mergedClasses")
+        delete mergedClassesDir
+        mergedClassesDir.mkdirs()
+        
+        // Extract plugin classes
+        copy {
+            from zipTree(pluginClassesJar)
+            into mergedClassesDir
+        }
+        
+        // Find and extract hbrecorder AAR
+        def hbrecorderAar = file("${project(':hbrecorder').buildDir}/outputs/aar/hbrecorder-release.aar")
+        def hbrecorderJarDir = file("$buildDir/tmp/hbrecorderJar")
+        delete hbrecorderJarDir
+        hbrecorderJarDir.mkdirs()
+        
+        copy {
+            from(zipTree(hbrecorderAar)) {
+                include 'classes.jar'
+            }
+            into hbrecorderJarDir
+        }
+        
+        copy {
+            from zipTree(file("$hbrecorderJarDir/classes.jar"))
+            into mergedClassesDir
+        }
+        
+        // Repackage merged classes
+        delete pluginClassesJar
+        ant.jar(destfile: pluginClassesJar) {
+            fileset(dir: mergedClassesDir)
+        }
+        
+        // Repackage AAR
+        delete fatAar
+        ant.zip(destfile: fatAar) {
+            fileset(dir: tempDir)
+        }
+        
+        println "Fat AAR created: $fatAar"
+    }
+}
+
+tasks.register('deployPluginToDirectory') {
+    group "Solar2Dev"
+    dependsOn createFatAar
     doLast {
         copy {
-            from {
-//                zipTree("$buildDir/outputs/aar/${project.name}-release.aar").matching {
-//                    include 'classes.jar'
-//                }.singleFile
-                "$buildDir/outputs/aar/${project.name}-release.aar"
-            }
+            from "$buildDir/outputs/aar/${project.name}-release-fat.aar"
             into "$buildDir/outputs/../../../../../plugins/2020.3620/android/"
-
-            rename "${project.name}-release.aar", "plugin.screenRecorder.aar"
-//            File pluginManifestFile = file("src/main/AndroidManifest.xml")
-//            if (pluginManifestFile.exists()) {
-//                String manifestContents = pluginManifestFile.text
-//                def pluginManifestXml = new XmlSlurper().parseText(manifestContents)
-//                String packageName = pluginManifestXml.@package.toString()
-//                rename "classes.jar", "${packageName}.jar"
-//            } else {
-//                rename "classes.jar", "plugin.jar"
-//            }
+            rename "${project.name}-release-fat.aar", "plugin.screenRecorder.aar"
         }
     }
 }
