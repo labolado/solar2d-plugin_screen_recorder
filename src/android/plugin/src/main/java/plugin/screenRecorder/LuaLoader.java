@@ -374,6 +374,7 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 			contentValues.put(MediaStore.Video.Media.TITLE, filename);
 			contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
 			contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4");
+			contentValues.put(MediaStore.Video.Media.IS_PENDING, 1);
 			mUri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues);
 			//FILE NAME SHOULD BE THE SAME
 			fRecorder.setFileName(filename);
@@ -386,12 +387,16 @@ public class LuaLoader implements JavaFunction, CoronaRuntimeListener, HBRecorde
 
 	private void updateGalleryUri() {
 		CoronaActivity activity = CoronaEnvironment.getCoronaActivity();
-		if (activity == null) {
+		if (activity == null || mUri == null) {
 			return;
 		}
 		contentValues.clear();
 		contentValues.put(MediaStore.Video.Media.IS_PENDING, 0);
-		activity.getContentResolver().update(mUri, contentValues, null, null);
+		try {
+			activity.getContentResolver().update(mUri, contentValues, null, null);
+		} catch (SecurityException e) {
+			Log.w("Corona", "Failed to update gallery URI: " + e.getMessage());
+		}
 		showPopup(activity, true);
 	}
 

@@ -1,5 +1,6 @@
 rootProject.name = "solar2d-plugin_screen_recorder"
-include("app", "plugin")
+include("app", "plugin", "hbrecorder")
+project(":hbrecorder").projectDir = file("../../external/HBRecorder/hbrecorder")
 
 if (settings.hasProperty('coronaExpansionFileName')) {
 	include("preloadedAssets")
